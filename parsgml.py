@@ -25,6 +25,9 @@ class Topology:
     def __lt__(self, other):
         return (self.density, len(self.nodes)) < (other.density, len(self.nodes))
 
+    def __str__(self):
+        return f"PATH:    {self.path}\nNODES:   {len(self.nodes)}\nLINKS:   {len(self.edges)}\nDENSITY: {self.density}\n"
+
 
 class GmlManager:
     def __init__(self, dpath="./GML_files", flog="density.txt"):
@@ -41,6 +44,7 @@ class GmlManager:
             self.topologies.append(
                 Topology(PATH, parser.graph.graphNodes, parser.graph.graphEdges)
             )
+        self.topologies.sort()
 
     def log_to_file(self):
         with open(self.flog, "w") as file:
@@ -55,14 +59,3 @@ class GmlManager:
             if a <= topo.density <= b:
                 res.append(topo)
         return res
-
-
-if __name__ == "__main__":
-    manager = GmlManager()
-    manager.parse()
-    manager.log_to_file()
-
-    for topo in sorted(manager.find_topo_by_density(0.6, 0.9)):
-        print(
-            f"density = {topo.density}\nnodes = {len(topo.nodes)}\nPATH = {topo.path}\n"
-        )
