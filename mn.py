@@ -5,11 +5,12 @@ from mininet.log import info, setLogLevel
 
 from parsgml import GmlManager
 import argparse
+import time
 
 
 def CmdParser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--controller", nargs=2, default="172.17.0.2 6653")
+    parser.add_argument("-c", "--controller", nargs=2, default="127.0.0.1 6653")
     parser.add_argument("-t", "--topo", type=int, default=0)
     return parser
 
@@ -19,33 +20,54 @@ def get_topology(n_topo=0):
     manager.parse()
     return manager.topologies[n_topo]
 
+class T:
+    def __init__(self, topo, ip, port, unlinks):
+        info("*** Prepairing topology\n")
 
-def run(topo, ip, port):
-    info("*** Prepairing topology\n")
-    topo.random_edges_weights()
+        info("\n*** Start emulating ***\n")
 
-    info("\n*** Start emulating ***\n")
+        net = Mininet(controller=RemoteController)
+        self.net = net
 
-    net = Mininet(controller=RemoteController)
+        info("*** Adding controller\n")
 
-    info("*** Adding controller\n")
+        net.addController("cr0", controller=RemoteController, ip=ip, port=port)
 
-    net.addController("c0", controller=RemoteController, ip=ip, port=port)
+        switches = []
+        
+        for node in topo.nodes:
+            info(f"*** Adding switch: Sw{node + 1}\n")
+            switches.append(net.addSwitch(f"Sw{node + 1}", dpid=f"{(node + 1)}", protocols="OpenFlow13"))
 
-    switches = []
-    
-    for node in topo.nodes:
-        info(f"*** Adding switch: S{node}\n")
-        switches.append(net.addSwitch(f"S{node}", protocols="OpenFlow13", role="AR" if node < 5 else "DR"))
+        for link in topo.edges:
+            info(f"*** Adding link from: Sw{link.source + 1}, to: Sw{link.target + 1}")
+            net.addLink(switches[link.source], switches[link.target])
 
-    for link in topo.edges:
-        info(f"*** Adding link from: S{link.source}, to: S{link.target} | bw = {topo.matrix[link.source][link.target]}\n")
-        net.addLink(switches[link.source], switches[link.target], bw=topo.matrix[link.source][link.target])
+        net.start()
+        info("Waiting (5sec) ...\n")
+        time.sleep(5)
+        try:
+            for i in unlinks:
+                edge = topo.edges[i]
+                info(f"*** Del link between: Sw{link.source + 1}, to: Sw{link.target + 1}")
+                net.delLinkBetween(switches[link.source], switches[link.target])
+                time.sleep(1)
+        except:
+            pass
 
-    net.start()
-    CLI(net)
+        CLI(net)
 
-    net.stop()
+    def __del__(self):
+        self.net.stop()
+
+
+def get_unlinks(n_topo):
+    unlinks = open("unlinks.txt", "r")
+    tmp = list(map(int, unlinks.readlines()[n_topo].split(',')))
+    info(f"{tmp}")
+    unlinks.close()
+    return tmp
+
 
 
 def main():
@@ -56,8 +78,9 @@ def main():
         int(args.controller[1]),
         args.topo,
     )
+    unlinks = get_unlinks(N_TOPO)
 
-    run(get_topology(N_TOPO), CONTROLLER_IP, CONTROLLER_PORT)
+    T(get_topology(N_TOPO), CONTROLLER_IP, CONTROLLER_PORT, unlinks)
 
 
 if __name__ == "__main__":
