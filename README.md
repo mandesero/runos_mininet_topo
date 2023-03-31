@@ -6,9 +6,9 @@
 
 Запуск:
 ```
-pipenv shell
+sudo apt install mininet
 pip3 install pygmlparser
-pip3 install mininet
+sudo pip3 install mininet
 
 sudo python3 topology.py <NUMBER OF TOPO>
 ```
